@@ -332,7 +332,7 @@ function stopRhythmGame(success) {
 
     setTimeout(() => {
         const accuracy = totalNotes > 0 ? Math.round((notesHit / totalNotes) * 100) : 0;
-        const result   = { success, score: totalScore, maxCombo, notesHit, totalNotes, accuracy };
+        const result   = { success, score: totalScore, maxCombo, notesHit, totalNotes, accuracy, _session: _sessionId };
 
         fetch(`https://${GetParentResourceName()}/rhythmResult`, {
             method: 'POST',
@@ -346,11 +346,28 @@ function stopRhythmGame(success) {
 }
 
 // ── postMessage listener (from test.html wrapper) ──
+let _sessionId = null;
+
 window.addEventListener('message', (event) => {
     if (event.data?.action === 'startRhythm') {
+        // Hard-stop any running game before starting fresh
+        if (rhythmActive) {
+            rhythmActive = false;
+            clearInterval(spawnInterval);
+            cancelAnimationFrame(animFrameId);
+            document.removeEventListener('keydown', handleRhythmKeyPress);
+            document.removeEventListener('keyup', handleRhythmKeyRelease);
+            // Remove any lingering notes
+            document.querySelectorAll('.rhythm-note').forEach(n => n.remove());
+        }
+
+        _sessionId = event.data.sessionId || null;
         setupRhythmGame(event.data.config);
         startRhythmGame();
+
         const container = document.getElementById('rhythm-container');
+        const idle      = document.getElementById('idle-screen');
+        if (idle)      idle.style.display = 'none';
         if (container) {
             container.style.display = 'flex';
             container.style.opacity = '1';
