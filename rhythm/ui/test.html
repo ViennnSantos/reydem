@@ -152,6 +152,7 @@
 
         input[type="range"] {
             width: 100%;
+            -webkit-appearance: none;
             height: 4px;
             background: var(--bg-elevated);
             border-radius: 2px;
@@ -820,13 +821,12 @@
         }
     }
 
-    // ── iframe Hooks ──
-    iframe.onload = () => {
-        log('Game frame loaded.', 'success');
+    // ── Session guard — ignore stale results from previous runs ──
+    let currentSessionId = null;
 
+    function hookIframe() {
         try {
             const win = iframe.contentWindow;
-
             win.document.body.style.cssText = 'background:#0a0d14;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;';
             win.GetParentResourceName = () => 'glitch-minigames';
 
@@ -835,15 +835,24 @@
                 if (typeof resource === 'string' && resource.includes('rhythmResult')) {
                     let payload = {};
                     try { payload = JSON.parse(options?.body || '{}'); } catch(e) {}
-                    handleNuiCallback(resource, payload);
+                    // Only handle result if it matches the current session
+                    const sid = payload._session;
+                    if (!sid || sid === currentSessionId) {
+                        handleNuiCallback(resource, payload);
+                    }
                     return new Response(JSON.stringify({ success: true }));
                 }
                 return originalFetch(resource, options);
             };
-
         } catch(err) {
             log(`Frame hook error: ${err.message}`, 'failure');
         }
+    }
+
+    // ── iframe Hooks ──
+    iframe.onload = () => {
+        log('Game frame loaded.', 'success');
+        hookIframe();
     };
 
     // ── Start Button ──
@@ -855,16 +864,20 @@
         const maxMissed     = parseInt(sliders.maxMissed.el.value);
         const maxWrong      = parseInt(sliders.maxWrong.el.value);
 
-        // Always ASDJKL for 6 lanes, ASDJ for 4, ASD for 3, etc.
         const allKeys = ['A', 'S', 'D', 'J', 'K', 'L'];
-        const keys = allKeys.slice(0, lanes);
+        const keys    = allKeys.slice(0, lanes);
+
+        // Generate new session ID — invalidates any pending result from previous run
+        currentSessionId = Date.now().toString();
 
         log(`Starting — Lanes: ${lanes} | Speed: ${speed}px/s | Target: ${requiredNotes} hits`, 'info');
 
         iframeContainer.classList.add('active');
+        hookIframe(); // re-hook in case context was reset
 
         iframe.contentWindow.postMessage({
             action: 'startRhythm',
+            sessionId: currentSessionId,
             config: {
                 lanes,
                 keys,
