@@ -3,6 +3,7 @@
 // ─────────────────────────────────────────────
 
 let rhythmActive = false;
+let resultSent   = false;  // guard: prevent double result firing
 let rhythmNotes  = [];
 let currentCombo = 0;
 let maxCombo     = 0;
@@ -299,6 +300,7 @@ function updateProgressBar() {
 
 function startRhythmGame() {
     rhythmActive  = true;
+    resultSent    = false;  // reset for new game
     lastFrameTime = 0;
 
     buildRhythmUI();
@@ -312,7 +314,9 @@ function startRhythmGame() {
 }
 
 function stopRhythmGame(success) {
+    if (resultSent) return;  // already sent — ignore duplicate call
     rhythmActive = false;
+    resultSent   = true;
 
     clearInterval(spawnInterval);
     cancelAnimationFrame(animFrameId);
