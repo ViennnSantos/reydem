@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Circuit Rhythm</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --accent:       #2dd4a8;
+            --accent-dim:   rgba(45,212,168,0.12);
+            --accent-glow:  rgba(45,212,168,0.3);
+            --bg:           #090d16;
+            --bg-card:      #0d1424;
+            --lane-border:  rgba(255,255,255,0.05);
+            --text:         #e2e8f0;
+            --text-muted:   #475569;
+            --success:      #22c55e;
+            --danger:       #ef4444;
+            --warn:         #f59e0b;
+            --mono:         'JetBrains Mono', monospace;
+        }
+
+        html, body {
+            width: 100%; height: 100%;
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', system-ui, sans-serif;
+            overflow: hidden;
+        }
+
+        /* ── Container ── */
+        #rhythm-container {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            padding: 16px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        /* ── Header ── */
+        .rg-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 640px;
+            margin-bottom: 10px;
+        }
+
+        .rg-title {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--accent);
+        }
+
+        .rg-score-wrap {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .rg-score-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #rhythm-score {
+            font-family: var(--mono);
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        /* ── Progress Bar ── */
+        .progress-track {
+            width: 100%;
+            max-width: 640px;
+            height: 3px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 2px;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+
+        .rhythm-progress {
+            height: 100%;
+            width: 0%;
+            background: var(--accent);
+            border-radius: 2px;
+            transition: width 0.15s ease;
+            box-shadow: 0 0 8px var(--accent-glow);
+        }
+
+        /* ── Highway ── */
+        .highway-wrap {
+            position: relative;
+            width: 100%;
+            max-width: 640px;
+            background: var(--bg-card);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .rhythm-highway {
+            display: flex;
+            height: 340px;
+            position: relative;
+        }
+
+        .rhythm-lane {
+            flex: 1;
+            border-right: 1px solid var(--lane-border);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .rhythm-lane:last-child { border-right: none; }
+
+        /* subtle lane glow on active */
+        .rhythm-lane.lane-active::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: var(--accent-dim);
+            pointer-events: none;
+        }
+
+        /* ── Hit Zone ── */
+        .hit-zone {
+            position: absolute;
+            bottom: 52px;
+            left: 0; right: 0;
+            height: 3px;
+            background: rgba(45,212,168,0.25);
+            z-index: 10;
+        }
+
+        .hit-zone::before {
+            content: '';
+            position: absolute;
+            inset: -4px 0;
+            background: rgba(45,212,168,0.06);
+        }
+
+        /* ── Notes ── */
+        .rhythm-note {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 72%;
+            height: 18px;
+            background: var(--accent);
+            border-radius: 4px;
+            box-shadow: 0 0 10px var(--accent-glow);
+            z-index: 5;
+        }
+
+        /* ── Feedback ── */
+        .rhythm-feedback {
+            position: absolute;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: var(--mono);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            opacity: 0;
+            transition: opacity 0.1s;
+            z-index: 20;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        .rhythm-feedback.feedback-show { opacity: 1; }
+        .feedback-perfect { color: #ffd700; }
+        .feedback-great   { color: var(--accent); }
+        .feedback-okay    { color: var(--warn); }
+        .feedback-miss    { color: var(--danger); }
+
+        /* ── Key Indicators ── */
+        .key-indicators {
+            display: flex;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .key-indicator {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 44px;
+            font-family: var(--mono);
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            border-right: 1px solid var(--lane-border);
+            transition: all 0.08s;
+            cursor: default;
+            user-select: none;
+        }
+
+        .key-indicator:last-child { border-right: none; }
+
+        .key-indicator.active {
+            background: var(--accent-dim);
+            color: var(--accent);
+            box-shadow: inset 0 -2px 0 var(--accent);
+        }
+
+        /* ── Combo ── */
+        .combo-wrap {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            text-align: center;
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        #combo-number {
+            font-family: var(--mono);
+            font-size: 32px;
+            font-weight: 600;
+            color: var(--text);
+            line-height: 1;
+            transition: transform 0.1s;
+        }
+
+        #combo-number.combo-highlight {
+            color: var(--accent);
+            transform: scale(1.2);
+            text-shadow: 0 0 16px var(--accent-glow);
+        }
+
+        .combo-label {
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* ── Status Message ── */
+        .rg-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            max-width: 640px;
+            margin-top: 8px;
+            padding: 0 2px;
+        }
+
+        #rhythm-message {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-family: var(--mono);
+        }
+
+        #rhythm-message.msg-success { color: var(--success); }
+        #rhythm-message.msg-failure { color: var(--danger); }
+
+        .rg-hint {
+            font-size: 10px;
+            color: var(--text-muted);
+            font-family: var(--mono);
+        }
+
+        /* ── Idle Screen ── */
+        #idle-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            gap: 10px;
+        }
+
+        .idle-title {
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        .idle-sub {
+            font-size: 11px;
+            color: rgba(255,255,255,0.15);
+            font-family: var(--mono);
+        }
+    </style>
+</head>
+<body>
+
+<!-- Idle state before game starts -->
+<div id="idle-screen">
+    <div class="idle-title">Circuit Rhythm</div>
+    <div class="idle-sub">Awaiting signal…</div>
+</div>
+
+<!-- Game container (hidden until startRhythm is received) -->
+<div id="rhythm-container">
+
+    <!-- Header row -->
+    <div class="rg-header">
+        <div class="rg-title">Circuit Rhythm</div>
+        <div class="rg-score-wrap">
+            <span class="rg-score-label">Score</span>
+            <span id="rhythm-score">0</span>
+        </div>
+    </div>
+
+    <!-- Progress bar -->
+    <div class="progress-track">
+        <div class="rhythm-progress"></div>
+    </div>
+
+    <!-- Highway wrapper -->
+    <div class="highway-wrap">
+        <!-- Notes & lanes rendered by JS -->
+        <div class="rhythm-highway"></div>
+
+        <!-- Hit zone line -->
+        <div class="hit-zone"></div>
+
+        <!-- Combo counter -->
+        <div class="combo-wrap">
+            <div id="combo-number">0</div>
+            <div class="combo-label">Combo</div>
+        </div>
+
+        <!-- Key indicators -->
+        <div class="key-indicators"></div>
+    </div>
+
+    <!-- Footer -->
+    <div class="rg-footer">
+        <span id="rhythm-message">Hit the notes in sync</span>
+        <span class="rg-hint" id="rhythm-key-hint">A S D J K L</span>
+    </div>
+
+</div>
+
+<script src="rhythm.js"></script>
+
+<script>
+    // Hide idle screen & show game when postMessage arrives
+    window.addEventListener('message', (e) => {
+        if (e.data?.action === 'startRhythm') {
+            document.getElementById('idle-screen').style.display = 'none';
+        }
+    });
+</script>
+
+</body>
+</html>
